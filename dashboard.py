@@ -147,29 +147,77 @@ if arquivo:
             
 import os
 
-# --- LOGO (VERSÃO LIMPA) ---
-diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-nome_do_logo = "logo_impulso.png" 
-CAMINHO_LOGO = os.path.join(diretorio_atual, nome_do_logo)
-
-# Removi os st.success e st.error daqui para não poluir a tela.
-
-# O sistema agora apenas verifica o caminho silenciosamente.
-
-# Adicione este import no topo do arquivo
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+from transformers import pipeline
+from fpdf import FPDF
 from wordcloud import WordCloud
+import os
 
-# --- LOGO ABAIXO DOS GRÁFICOS NO SEU CÓDIGO ---
+# --- 1. CONFIGURAÇÃO DA IA ---
+@st.cache_resource
+def carregar_ia():
+    return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
-if btn_analisar:
-    # ... (código que você já tem de análise e métricas) ...
+def classificar_sentimento(texto, analisador):
+    if not texto or len(str(texto)) < 3: return "Neutro"
+    res = analisador(str(texto)[:512])[0]
+    estrelas = int(res['label'].split()[0])
+    if estrelas <= 2: return "Negativo"
+    elif estrelas == 3: return "Neutro"
+    else: return "Positivo"
 
-    with col_grafico:
-        st.subheader("📈 Clima da Audiência")
-        # (seu código do gráfico de pizza aqui)
+# --- 2. FUNÇÃO NUVEM DE PALAVRAS ---
+def gerar_nuvem(df, coluna_texto):
+    texto_negativo = " ".join(df[df['Sentimento'] == 'Negativo'][coluna_texto].astype(str))
+    if len(texto_negativo) > 10:
+        stopwords_pt = ["de", "a", "o", "que", "e", "do", "da", "em", "um", "para", "com", "não", "uma", "os", "no", "se", "na", "este", "esta", "por"]
+        nuvem = WordCloud(width=800, height=400, background_color='white', colormap='Reds', stopwords=stopwords_pt).generate(texto_negativo)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.imshow(nuvem, interpolation='bilinear')
+        ax.axis("off")
         st.pyplot(fig)
+    else:
+        st.info("Amostra insuficiente de críticas para gerar a nuvem de palavras.")
 
-    # COLOQUE A NUVEM AQUI DENTRO DO "IF BTN_ANALISAR"
-    st.divider()
-    st.subheader("🗣️ O que estão dizendo nas críticas?")
-    gerar_nuvem(df, coluna_texto)
+# --- 3. FUNÇÃO PDF COMPLETA ---
+def gerar_pdf_completo(df_final, perc_neg, col_texto, caminho_grafico, caminho_logo, link_post):
+    pdf = FPDF()
+    pdf.add_page()
+    if caminho_logo and os.path.exists(caminho_logo):
+        pdf.image(caminho_logo, x=10, y=8, w=35)
+    pdf.set_font("Arial", 'B', 16)
+    pdf.ln(15)
+    pdf.cell(200, 10, txt="Relatorio de Crise - Impulso Marketing", ln=True, align='C')
+    if link_post:
+        pdf.set_font("Arial", 'I', 10)
+        pdf.set_text_color(0, 0, 255)
+        pdf.cell(200, 10, txt=f"Link do Post: {link_post}", ln=True, align='C', link=link_post)
+        pdf.set_text_color(0, 0, 0)
+    pdf.ln(5)
+    if os.path.exists(caminho_grafico):
+        pdf.image(caminho_grafico, x=60, y=55, w=90)
+        pdf.ln(85)
+    pdf.set_font("Arial", size=11)
+    pdf.cell(200, 10, txt=f"Indice de Negatividade: {perc_neg:.1f}%", ln=True)
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(200, 10, txt="Analise de Amostra:", ln=True)
+    pdf.set_font("Arial", size=9)
+    for index, row in df_final.head(15).iterrows():
+        texto_limpo = str(row[col_texto]).encode('latin-1', 'replace').decode('latin-1')
+        pdf.cell(200, 7, txt=f"- [{row['Sentimento']}]: {texto_limpo[:85]}...", ln=True)
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- 4. INTERFACE ---
+st.set_page_config(page_title="Impulso - Monitoramento", layout="wide")
+
+# Localização do Logo
+diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+CAMINHO_LOGO = os.path.join(diretorio_atual, "logo_impulso.png")
+
+# Título
+col_l, col_t = st.columns([1, 4])
+with col_l:
+    if os.path.exists(CAMINHO_LOGO): st.image(CAM
