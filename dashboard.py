@@ -153,4 +153,37 @@ nome_do_logo = "logo_impulso.png"
 CAMINHO_LOGO = os.path.join(diretorio_atual, nome_do_logo)
 
 # Removi os st.success e st.error daqui para não poluir a tela.
+
 # O sistema agora apenas verifica o caminho silenciosamente.
+
+# Adicione este import no topo do arquivo
+from wordcloud import WordCloud
+
+# --- NOVA FUNÇÃO PARA NUVEM DE PALAVRAS ---
+def gerar_nuvem(df, coluna_texto):
+    # Filtramos apenas os comentários negativos para a Impulso agir na crise
+    texto_negativo = " ".join(df[df['Sentimento'] == 'Negativo'][coluna_texto].astype(str))
+    
+    if len(texto_negativo) > 10:
+        # Lista de palavras para ignorar (Stopwords)
+        stopwords_pt = ["de", "a", "o", "que", "e", "do", "da", "em", "um", "para", "com", "não", "uma", "os", "no", "se", "na"]
+        
+        nuvem = WordCloud(
+            width=800, 
+            height=400, 
+            background_color='white',
+            colormap='Reds', # Tons de vermelho para indicar crise
+            stopwords=stopwords_pt
+        ).generate(texto_negativo)
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.imshow(nuvem, interpolation='bilinear')
+        ax.axis("off")
+        st.pyplot(fig)
+    else:
+        st.info("Amostra insuficiente de comentários negativos para gerar a nuvem.")
+
+# --- NA PARTE DO LAYOUT (logo abaixo dos gráficos atuais) ---
+st.divider()
+st.subheader("🗣️ O que estão dizendo nas críticas?")
+gerar_nuvem(df, coluna_texto)
