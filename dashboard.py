@@ -159,31 +159,17 @@ CAMINHO_LOGO = os.path.join(diretorio_atual, nome_do_logo)
 # Adicione este import no topo do arquivo
 from wordcloud import WordCloud
 
-# --- NOVA FUNÇÃO PARA NUVEM DE PALAVRAS ---
-def gerar_nuvem(df, coluna_texto):
-    # Filtramos apenas os comentários negativos para a Impulso agir na crise
-    texto_negativo = " ".join(df[df['Sentimento'] == 'Negativo'][coluna_texto].astype(str))
-    
-    if len(texto_negativo) > 10:
-        # Lista de palavras para ignorar (Stopwords)
-        stopwords_pt = ["de", "a", "o", "que", "e", "do", "da", "em", "um", "para", "com", "não", "uma", "os", "no", "se", "na"]
-        
-        nuvem = WordCloud(
-            width=800, 
-            height=400, 
-            background_color='white',
-            colormap='Reds', # Tons de vermelho para indicar crise
-            stopwords=stopwords_pt
-        ).generate(texto_negativo)
-        
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.imshow(nuvem, interpolation='bilinear')
-        ax.axis("off")
-        st.pyplot(fig)
-    else:
-        st.info("Amostra insuficiente de comentários negativos para gerar a nuvem.")
+# --- LOGO ABAIXO DOS GRÁFICOS NO SEU CÓDIGO ---
 
-# --- NA PARTE DO LAYOUT (logo abaixo dos gráficos atuais) ---
-st.divider()
-st.subheader("🗣️ O que estão dizendo nas críticas?")
-gerar_nuvem(df, coluna_texto)
+if btn_analisar:
+    # ... (código que você já tem de análise e métricas) ...
+
+    with col_grafico:
+        st.subheader("📈 Clima da Audiência")
+        # (seu código do gráfico de pizza aqui)
+        st.pyplot(fig)
+
+    # COLOQUE A NUVEM AQUI DENTRO DO "IF BTN_ANALISAR"
+    st.divider()
+    st.subheader("🗣️ O que estão dizendo nas críticas?")
+    gerar_nuvem(df, coluna_texto)
