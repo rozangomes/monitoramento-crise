@@ -20,7 +20,7 @@ def classificar_sentimento(texto, analisador):
     else: return "Positivo"
 
 # --- 2. FUNÇÃO NUVEM DE PALAVRAS ---
-def gerar_nuvem(df, coluna_texto):
+def gerar_nuvem(df, coluna_texto, salvar_caminho=None):
     texto_negativo = " ".join(df[df['Sentimento'] == 'Negativo'][coluna_texto].astype(str))
     if len(texto_negativo) > 10:
         stopwords_pt = ["de", "a", "o", "que", "e", "do", "da", "em", "um", "para", "com", "não", "uma", "os", "no", "se", "na", "este", "esta", "por", "mais", "tem"]
@@ -28,12 +28,18 @@ def gerar_nuvem(df, coluna_texto):
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.imshow(nuvem, interpolation='bilinear')
         ax.axis("off")
-        st.pyplot(fig)
+        
+        if salvar_caminho:
+            plt.savefig(salvar_caminho, bbox_inches='tight', dpi=150)
+            plt.close(fig)
+        else:
+            st.pyplot(fig)
     else:
-        st.info("Amostra insuficiente de críticas para gerar a nuvem de palavras.")
+        if not salvar_caminho:
+            st.info("Amostra insuficiente de críticas para gerar a nuvem de palavras.")
 
 # --- 3. FUNÇÃO PDF COMPLETA ---
-def gerar_pdf_completo(df_final, perc_neg, col_texto, caminho_grafico, caminho_logo, link_post):
+def gerar_pdf_completo(df_final, perc_neg, col_texto, caminho_grafico, caminho_nuvem, caminho_logo, link_post):
     pdf = FPDF()
     pdf.add_page()
     
@@ -58,11 +64,18 @@ def gerar_pdf_completo(df_final, perc_neg, col_texto, caminho_grafico, caminho_l
         pdf.cell(200, 10, txt=f"Link do Post: {link_post}", ln=True, align='C', link=link_post)
         pdf.set_text_color(0, 0, 0)
 
-    # Inserir Gráfico
+    # Inserir Gráfico de Pizza
     pdf.ln(5)
     if os.path.exists(caminho_grafico):
         pdf.image(caminho_grafico, x=60, y=pdf.get_y() + 5, w=90)
         pdf.ln(85)
+
+    # Inserir Nuvem de Palavras no PDF
+    if os.path.exists(caminho_nuvem):
+        pdf.set_font("Arial", 'B', 11)
+        pdf.cell(200, 10, txt="Nuvem de Palavras das Criticas:", ln=True)
+        pdf.image(caminho_nuvem, x=40, y=pdf.get_y() + 2, w=130)
+        pdf.ln(70)
 
     pdf.set_font("Arial", size=12)
     pdf.cell(200, 10, txt=f"Indice de Negatividade: {perc_neg:.1f}%", ln=True)
@@ -81,11 +94,9 @@ def gerar_pdf_completo(df_final, perc_neg, col_texto, caminho_grafico, caminho_l
 # --- 4. INTERFACE ---
 st.set_page_config(page_title="Impulso - Monitoramento", layout="wide")
 
-# Localização robusta do Logo
 diretorio_atual = os.path.dirname(os.path.abspath(__file__))
 CAMINHO_LOGO = os.path.join(diretorio_atual, "logo_impulso.png")
 
-# Título com Logo
 col_l, col_t = st.columns([1, 4])
 with col_l:
     if os.path.exists(CAMINHO_LOGO):
@@ -97,7 +108,6 @@ with col_t:
 analisador = carregar_ia()
 arquivo = st.file_uploader("Carregue a sua folha de Excel ou CSV", type=["xlsx", "csv"])
 
-# Lógica principal
 if arquivo:
     df = pd.read_excel(arquivo) if arquivo.name.endswith('xlsx') else pd.read_csv(arquivo)
     
@@ -127,8 +137,10 @@ if arquivo:
             else:
                 st.success(f"Clima Positivo: {perc_neg:.1f}% Negativo")
             
-            # Gerar Gráfico Temporário para o PDF
+            # Gerar Gráficos Temporários
             caminho_img = "grafico_temp.png"
+            caminho_nuvem_img = "nuvem_temp.png"
+            
             fig_temp, ax_temp = plt.subplots(figsize=(5, 4))
             cores_map = {'Positivo': '#2ecc71', 'Negativo': '#e74c3c', 'Neutro': '#95a5a6'}
             cores_lista = [cores_map.get(x, '#333') for x in contagem.index]
@@ -137,8 +149,11 @@ if arquivo:
             plt.savefig(caminho_img, bbox_inches='tight', dpi=150)
             plt.close(fig_temp)
 
-            # Botão de PDF
-            pdf_bytes = gerar_pdf_completo(df, perc_neg, coluna_texto, caminho_img, CAMINHO_LOGO, link_post)
+            # Gera a nuvem silenciosamente para salvar o arquivo do PDF
+            gerar_nuvem(df, coluna_texto, salvar_caminho=caminho_nuvem_img)
+
+            # Botão de PDF atualizado
+            pdf_bytes = gerar_pdf_completo(df, perc_neg, coluna_texto, caminho_img, caminho_nuvem_img, CAMINHO_LOGO, link_post)
             st.download_button(
                 label="📥 Descarregar Relatório Oficial PDF",
                 data=pdf_bytes,
@@ -156,11 +171,13 @@ if arquivo:
 
         st.divider()
         st.subheader("🗣️ Temas Centrais nas Críticas (Nuvem de Palavras)")
-        gerar_nuvem(df, coluna_texto)
+        gerar_nuvem(df, coluna_texto) # Mostra na tela
 
         st.divider()
         st.subheader("📑 Detalhamento dos Comentários")
         st.dataframe(df[[coluna_texto, 'Sentimento']], use_container_width=True)
         
-        if os.path.exists(caminho_img):
-            os.remove(caminho_img)
+        # Limpeza de arquivos temporários
+        for temp_file in [caminho_img, caminho_nuvem_img]:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
