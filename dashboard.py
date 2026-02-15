@@ -54,7 +54,7 @@ def gerar_pdf_completo(df_final, perc_neg, col_texto, caminho_grafico, caminho_n
     pdf.ln(15)
     pdf.cell(200, 10, txt="Relatorio de Monitoramento Digital", ln=True, align='C')
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(200, 10, txt="Impulso Marketing Politico", ln=True, align='C')
+    pdf.cell(200, 10, txt="Análise Amostral de Comentários nas Redes", ln=True, align='C')
     
     # Inserir Link se existir
     if link_post:
@@ -181,3 +181,4 @@ if arquivo:
         for temp_file in [caminho_img, caminho_nuvem_img]:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
+
